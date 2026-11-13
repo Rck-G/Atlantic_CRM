@@ -6,6 +6,17 @@ CRM web modular para clientes, fidelización, campañas, beneficios, HelpDesk, r
 
 > **Estado de entrega:** código ampliado y preparado para integración. La revisión y validación ejecutada en este entorno es estática (`node --check` del backend). No se pudo instalar dependencias ni levantar PostgreSQL/Docker en este entorno, por lo que no se afirma que los flujos hayan superado pruebas de integración. Los proveedores reales de POS, membresías, reservas, eventos y marketing no fueron identificados; por ello los endpoints de dominio y el webhook POS quedan listos para configuración, pero no hay conectividad externa activa. Las reglas VIP y políticas operativas son parámetros de negocio pendientes de aprobación.
 
+## Evolución integral 2.0
+
+El alcance aprobado es integral: Gerencia, Marketing, Operaciones, Atención al Cliente y clientes finales. El proveedor POS aún no está definido, por lo que no se considera activa ninguna integración POS productiva. La arquitectura futura debe ser neutral a proveedor.
+
+Documentos de planificación:
+- `docs/PLAN_EVOLUCION_CRM_2_0.md`: fases, entregables, criterios de salida, permisos y modelo de datos objetivo.
+- `docs/BACKLOG_PRIORIZADO_2_0.md`: backlog priorizado y primer sprint recomendado.
+- `docs/CONTRATO_INTEGRACIONES_NEUTRAL.md`: patrón para integraciones futuras, incluido POS cuando se seleccione proveedor.
+
+Estos documentos son el plan de trabajo; no significan que las funcionalidades futuras ya estén implementadas.
+
 ## Módulos y capacidades
 
 1. **Clientes/CRM:** alta, consulta, edición, ficha, historial, búsqueda y paginación; unicidad de DNI.

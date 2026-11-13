@@ -29,3 +29,9 @@
 - JSON de los tres `package.json`: válido.
 - Comprobación estructural de presencia de modelos Prisma: correcta.
 - No se ejecutaron Prisma validate/generate, build Vite ni pruebas de integración: instalación npm agotó el tiempo disponible y Docker no está instalado en el entorno de construcción.
+
+## Correcciones de revisión (12/11/2026)
+
+- Se restringió el catálogo de eventos visible para cuentas CLIENT: solo reciben eventos publicados y cuya fecha de cierre no haya pasado. Los perfiles internos conservan la vista operativa completa.
+- Los formularios de restaurantes, reservas y eventos ya no borran los datos ingresados cuando el servidor rechaza la operación; solo se reinician tras una respuesta satisfactoria.
+- Se añadió manejo explícito de errores al convertir fechas locales de reservas/eventos, evitando que una fecha inválida rompa el flujo de envío.

@@ -630,7 +630,10 @@ app.patch('/api/reservations/:id/status', auth, allow('EMPLOYEE','ADMIN'), async
     if (!item) return res.status(404).json({ error: 'Reserva no encontrada' });
     await audit(req.user.id, 'RESERVATION_STATUS_CHANGED', 'Reservation', item.id); res.json(item);
 }));
-app.get('/api/events', auth, asyncRoute(async (_req,res) => res.json(await prisma.event.findMany({ include: { _count: { select: { registrations: true } } }, orderBy: { startsAt: 'asc' } }))));
+app.get('/api/events', auth, asyncRoute(async (req,res) => {
+    const where = req.user.role === 'CLIENT' ? { status: 'PUBLISHED', endsAt: { gte: new Date() } } : {};
+    res.json(await prisma.event.findMany({ where, include: { _count: { select: { registrations: true } } }, orderBy: { startsAt: 'asc' } }));
+}));
 app.post('/api/events', auth, allow('MARKETING','ADMIN'), asyncRoute(async (req,res) => {
     const p = z.object({ code: z.string().min(2).max(40), name: z.string().min(2).max(150), description: z.string().max(3000).optional(), venue: z.string().max(200).optional(), startsAt: z.string().datetime(), endsAt: z.string().datetime(), capacity: z.number().int().positive().optional(), status: z.enum(['DRAFT','PUBLISHED','CANCELLED','COMPLETED']).default('DRAFT') }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: 'Evento inválido', details: p.error.flatten() });

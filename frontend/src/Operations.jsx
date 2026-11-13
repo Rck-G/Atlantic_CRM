@@ -31,8 +31,15 @@ export default function Operations({ api, role }) {
 
   const submit = async (path, payload, success) => {
     setError(''); setNotice('');
-    try { await apiRef.current(path, { method: 'POST', body: JSON.stringify(payload) }); setNotice(success); await refresh(); }
-    catch (err) { setError(err.message); }
+    try {
+      await apiRef.current(path, { method: 'POST', body: JSON.stringify(payload) });
+      setNotice(success);
+      await refresh();
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
   };
   const iso = value => new Date(value).toISOString();
 
@@ -47,7 +54,7 @@ export default function Operations({ api, role }) {
     <div className="dashboard-grid operations-grid">
       {role === 'ADMIN' && <section className="panel stack">
         <div className="panel-head"><div><h3><Utensils size={18}/> Restaurantes</h3><p>Catálogo de establecimientos y capacidad de referencia.</p></div></div>
-        <form className="stack" onSubmit={e => { e.preventDefault(); submit('/restaurants', { ...restaurantForm, capacity: Number(restaurantForm.capacity) }, 'Restaurante registrado.'); setRestaurantForm(emptyRestaurant); }}>
+        <form className="stack" onSubmit={async e => { e.preventDefault(); if (await submit('/restaurants', { ...restaurantForm, capacity: Number(restaurantForm.capacity) }, 'Restaurante registrado.')) setRestaurantForm(emptyRestaurant); }}>
           <label>Código<input required value={restaurantForm.code} onChange={e => setRestaurantForm({...restaurantForm, code:e.target.value})} placeholder="REST-01"/></label>
           <label>Nombre<input required value={restaurantForm.name} onChange={e => setRestaurantForm({...restaurantForm, name:e.target.value})} placeholder="Nombre del restaurante"/></label>
           <label>Ubicación<input value={restaurantForm.location} onChange={e => setRestaurantForm({...restaurantForm, location:e.target.value})} placeholder="Ubicación / salón"/></label>
@@ -62,7 +69,7 @@ export default function Operations({ api, role }) {
 
       {(role === 'ADMIN' || role === 'EMPLOYEE') && <section className="panel stack">
         <div className="panel-head"><div><h3><CalendarDays size={18}/> Nueva reserva</h3><p>El sistema valida el aforo disponible en el horario solicitado.</p></div></div>
-        <form className="stack" onSubmit={e => { e.preventDefault(); submit('/reservations', { ...reservationForm, partySize:Number(reservationForm.partySize), startsAt:iso(reservationForm.startsAt), endsAt:iso(reservationForm.endsAt) }, 'Reserva creada.'); }}>
+        <form className="stack" onSubmit={async e => { e.preventDefault(); try { const ok = await submit('/reservations', { ...reservationForm, partySize:Number(reservationForm.partySize), startsAt:iso(reservationForm.startsAt), endsAt:iso(reservationForm.endsAt) }, 'Reserva creada.'); if (ok) setReservationForm(v => ({ ...v, guestName:'', guestPhone:'', partySize:2, startsAt:'', endsAt:'' })); } catch (err) { setError(err.message); } }}>
           <label>Restaurante<select required value={reservationForm.restaurantId} onChange={e => setReservationForm({...reservationForm, restaurantId:e.target.value})}><option value="">Seleccionar</option>{restaurants.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
           <label>Nombre del titular<input required value={reservationForm.guestName} onChange={e => setReservationForm({...reservationForm, guestName:e.target.value})}/></label>
           <label>Teléfono<input value={reservationForm.guestPhone} onChange={e => setReservationForm({...reservationForm, guestPhone:e.target.value})}/></label>
@@ -75,7 +82,7 @@ export default function Operations({ api, role }) {
 
       {(role === 'ADMIN' || role === 'MARKETING') && <section className="panel stack">
         <div className="panel-head"><div><h3><Ticket size={18}/> Eventos</h3><p>Publica actividades y controla el aforo de inscripciones.</p></div></div>
-        <form className="stack" onSubmit={e => { e.preventDefault(); submit('/events', { ...eventForm, startsAt:iso(eventForm.startsAt), endsAt:iso(eventForm.endsAt), capacity:Number(eventForm.capacity), status:'PUBLISHED' }, 'Evento publicado.'); setEventForm(emptyEvent); }}>
+        <form className="stack" onSubmit={async e => { e.preventDefault(); try { if (await submit('/events', { ...eventForm, startsAt:iso(eventForm.startsAt), endsAt:iso(eventForm.endsAt), capacity:Number(eventForm.capacity), status:'PUBLISHED' }, 'Evento publicado.')) setEventForm(emptyEvent); } catch (err) { setError(err.message); } }}>
           <label>Código<input required value={eventForm.code} onChange={e => setEventForm({...eventForm, code:e.target.value})} placeholder="EVT-2026-01"/></label>
           <label>Nombre<input required value={eventForm.name} onChange={e => setEventForm({...eventForm, name:e.target.value})}/></label>
           <label>Local / salón<input value={eventForm.venue} onChange={e => setEventForm({...eventForm, venue:e.target.value})}/></label>
