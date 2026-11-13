@@ -1,0 +1,336 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  EMPLOYEE
+  MARKETING
+  ADMIN
+}
+
+enum VipTier {
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  FINISHED
+}
+
+enum BenefitStatus {
+  AVAILABLE
+  REDEEMED
+  EXPIRED
+  CANCELLED
+}
+
+enum TicketStatus {
+  NEW
+  PENDING
+  IN_PROGRESS
+  WAITING_INFO
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(CLIENT)
+  clientId     String?  @unique
+  client       Client?  @relation(fields: [clientId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  auditEvents  AuditEvent[]
+  tickets      Ticket[] @relation("TicketCreator")
+}
+
+model Client {
+  id             String   @id @default(cuid())
+  dni            String   @unique
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  birthDate      DateTime?
+  preferences    Json?
+  consentMarketing Boolean @default(false)
+  vipTier        VipTier  @default(SILVER)
+  vipScore       Float    @default(0)
+  vipEvaluatedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User?
+  benefits       BenefitAssignment[]
+  tickets        Ticket[]
+  activity       ClientActivity[]
+  reservations   Reservation[]
+  registrations  EventRegistration[]
+  sales          Sale[]
+}
+
+model ClientActivity {
+  id        String   @id @default(cuid())
+  clientId  String
+  source    String
+  kind      String
+  amount    Float?
+  occurredAt DateTime @default(now())
+  idempotencyKey String? @unique
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  @@index([clientId, occurredAt])
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  status      CampaignStatus @default(DRAFT)
+  targetTier  VipTier?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  channel     String         @default("IN_APP")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  benefits    Benefit[]
+}
+
+model Benefit {
+  id          String   @id @default(cuid())
+  campaignId  String?
+  name        String
+  description String?
+  code        String   @unique
+  tier        VipTier?
+  validFrom   DateTime?
+  validUntil  DateTime?
+  maxRedemptions Int   @default(1)
+  redeemedCount Int    @default(0)
+  status      BenefitStatus @default(AVAILABLE)
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+  assignments BenefitAssignment[]
+  createdAt   DateTime @default(now())
+}
+
+model BenefitAssignment {
+  id          String   @id @default(cuid())
+  clientId    String
+  benefitId   String
+  assignedAt  DateTime @default(now())
+  redeemedAt  DateTime?
+  status      BenefitStatus @default(AVAILABLE)
+  redeemedBy  String?
+  client      Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  benefit     Benefit @relation(fields: [benefitId], references: [id])
+  @@unique([clientId, benefitId])
+  @@index([clientId, status])
+}
+
+model Ticket {
+  id          String @id @default(cuid())
+  ticketNo    String @unique
+  clientId    String?
+  createdById String
+  subject     String
+  description String
+  category    String @default("GENERAL")
+  channel     String @default("WEB")
+  priority    TicketPriority @default(MEDIUM)
+  status      TicketStatus @default(NEW)
+  department  String?
+  resolution  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  client      Client? @relation(fields: [clientId], references: [id])
+  createdBy   User @relation("TicketCreator", fields: [createdById], references: [id])
+  history     TicketHistory[]
+  @@index([status, priority, createdAt])
+}
+
+model TicketHistory {
+  id        String @id @default(cuid())
+  ticketId  String
+  actorId   String
+  action    String
+  fromState String?
+  toState   String?
+  note      String?
+  createdAt DateTime @default(now())
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id          String @id @default(cuid())
+  actorId     String?
+  action      String
+  resource    String
+  resourceId  String?
+  outcome     String @default("SUCCESS")
+  correlationId String?
+  createdAt   DateTime @default(now())
+  actor       User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([createdAt, action])
+}
+
+model Integration {
+  id          String @id @default(cuid())
+  name        String
+  type        String
+  endpoint    String?
+  enabled     Boolean @default(false)
+  lastStatus  String @default("NOT_CONFIGURED")
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AppSetting {
+  key       String @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+
+// Dominios operativos ampliados. Las referencias externas permiten sincronización
+// idempotente sin acoplar el CRM a un proveedor concreto.
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+enum RegistrationStatus {
+  REGISTERED
+  CANCELLED
+  ATTENDED
+}
+enum SaleStatus {
+  PENDING
+  PAID
+  REFUNDED
+  VOID
+}
+
+model Restaurant {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  location    String?
+  capacity    Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reservations Reservation[]
+}
+
+model Reservation {
+  id             String @id @default(cuid())
+  restaurantId   String
+  clientId       String?
+  externalId     String? @unique
+  guestName      String
+  guestEmail     String?
+  guestPhone     String?
+  partySize      Int
+  startsAt       DateTime
+  endsAt         DateTime
+  status         ReservationStatus @default(PENDING)
+  notes          String?
+  source         String @default("CRM")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id])
+  client         Client? @relation(fields: [clientId], references: [id])
+  @@index([restaurantId, startsAt, endsAt, status])
+  @@index([clientId, startsAt])
+}
+
+model Event {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  description String?
+  venue       String?
+  startsAt    DateTime
+  endsAt      DateTime
+  capacity    Int?
+  status      EventStatus @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  registrations EventRegistration[]
+  @@index([status, startsAt])
+}
+
+model EventRegistration {
+  id          String @id @default(cuid())
+  eventId     String
+  clientId    String?
+  externalId  String? @unique
+  attendeeName String
+  attendeeEmail String?
+  status      RegistrationStatus @default(REGISTERED)
+  createdAt   DateTime @default(now())
+  event       Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  client      Client? @relation(fields: [clientId], references: [id])
+  @@index([eventId, status])
+}
+
+model Sale {
+  id          String @id @default(cuid())
+  externalId  String @unique
+  clientId    String?
+  source      String
+  currency    String @default("PEN")
+  amount      Decimal @db.Decimal(12,2)
+  status      SaleStatus @default(PAID)
+  soldAt      DateTime
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  client      Client? @relation(fields: [clientId], references: [id])
+  @@index([clientId, soldAt])
+  @@index([source, soldAt])
+}
+
+model IntegrationEvent {
+  id          String @id @default(cuid())
+  source      String
+  externalId  String
+  eventType   String
+  payload     Json
+  status      String @default("RECEIVED")
+  attempts    Int @default(0)
+  lastError   String?
+  receivedAt  DateTime @default(now())
+  processedAt DateTime?
+  @@unique([source, externalId])
+  @@index([status, receivedAt])
+}
