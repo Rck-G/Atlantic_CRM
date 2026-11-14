@@ -11,6 +11,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 const prisma = new PrismaClient();
 const app = express();
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT || 4000);
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET.length < 24) {
@@ -24,6 +25,7 @@ app.use(cors({ origin: (origin, cb) => !origin || allowedOrigins.includes(origin
 app.use(express.json({ limit: '1mb' }));
 app.use(rateLimit({ windowMs: 60_000, limit: 180, standardHeaders: true, legacyHeaders: false }));
 const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiados intentos. Inténtalo más tarde.' } });
+const registrationLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Se alcanzó el límite de registros desde esta conexión. Inténtalo más tarde.' } });
 const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 function signToken(user) {
     if (!JWT_SECRET || JWT_SECRET.length < 24)
@@ -94,6 +96,65 @@ app.post('/api/auth/login', authLimiter, asyncRoute(async (req, res) => {
     }
     await audit(user.id, 'LOGIN_SUCCESS', 'Auth', user.id);
     res.json({ token: signToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role, clientId: user.clientId } });
+}));
+app.post('/api/auth/register', registrationLimiter, asyncRoute(async (req, res) => {
+    const registerSchema = z.object({
+        firstName: z.string().trim().min(2, 'Ingresa tus nombres (mínimo 2 caracteres)').max(80).regex(/^[\p{L}][\p{L} .'-]*$/u, 'Los nombres contienen caracteres no válidos'),
+        lastName: z.string().trim().min(2, 'Ingresa tus apellidos (mínimo 2 caracteres)').max(100).regex(/^[\p{L}][\p{L} .'-]*$/u, 'Los apellidos contienen caracteres no válidos'),
+        dni: z.string().trim().min(5).max(20).transform(v => v.replace(/\s/g, '').toUpperCase()).regex(/^[A-Z0-9]+$/, 'El documento solo debe contener letras y números'),
+        email: z.string().trim().email('Ingresa un correo electrónico válido').max(254).transform(v => v.toLowerCase()),
+        phone: z.string().trim().min(7).max(20).regex(/^\+?[0-9 ()-]{7,20}$/, 'Ingresa un teléfono válido'),
+        password: z.string().min(10, 'La contraseña debe tener al menos 10 caracteres').max(72, 'La contraseña es demasiado larga')
+            .refine(v => Buffer.byteLength(v, 'utf8') <= 72, 'La contraseña no puede superar 72 bytes UTF-8')
+            .regex(/[a-z]/, 'La contraseña debe incluir una letra minúscula')
+            .regex(/[A-Z]/, 'La contraseña debe incluir una letra mayúscula')
+            .regex(/[0-9]/, 'La contraseña debe incluir un número')
+            .regex(/[^A-Za-z0-9]/, 'La contraseña debe incluir un símbolo'),
+        consentMarketing: z.boolean().optional().default(false)
+    });
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Revisa los datos del formulario', details: parsed.error.flatten() });
+
+    const data = parsed.data;
+    try {
+        const existingClient = await prisma.client.findUnique({ where: { dni: data.dni }, select: { id: true } });
+        if (existingClient) return res.status(409).json({ error: 'Este documento ya está registrado. Contacta con Atención al Cliente para vincular tu cuenta.' });
+
+        const result = await prisma.$transaction(async (tx) => {
+            const client = await tx.client.create({
+                data: {
+                    dni: data.dni,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    email: data.email,
+                    phone: data.phone,
+                    consentMarketing: data.consentMarketing
+                }
+            });
+            const user = await tx.user.create({
+                data: {
+                    name: `${data.firstName} ${data.lastName}`.trim(),
+                    email: data.email,
+                    passwordHash: await bcrypt.hash(data.password, 12),
+                    role: Role.CLIENT,
+                    clientId: client.id
+                }
+            });
+            await tx.auditEvent.create({ data: { actorId: user.id, action: 'CLIENT_SELF_REGISTERED', resource: 'Client', resourceId: client.id, outcome: 'SUCCESS', correlationId: crypto.randomUUID() } });
+            return { client, user };
+        }, { isolationLevel: 'Serializable' });
+
+        const token = signToken(result.user);
+        res.status(201).json({
+            token,
+            user: { id: result.user.id, name: result.user.name, email: result.user.email, role: result.user.role, clientId: result.user.clientId },
+            message: 'Cuenta de cliente creada correctamente'
+        });
+    } catch (e) {
+        if (e.code === 'P2002') return res.status(409).json({ error: 'El documento o correo electrónico ya se encuentra registrado.' });
+        if (e.code === 'P2034') return res.status(409).json({ error: 'No se pudo completar el registro por una operación simultánea. Inténtalo nuevamente.' });
+        throw e;
+    }
 }));
 app.get('/api/auth/me', auth, asyncRoute(async (req, res) => {
     const u = await prisma.user.findUnique({ where: { id: req.user.id }, select: { id: true, name: true, email: true, role: true, clientId: true } });
@@ -732,6 +793,7 @@ const openapi = {
     paths: {
         '/api/health': { get: { summary: 'Estado de la API y base de datos', responses: { '200': { description: 'Servicio disponible' } } } },
         '/api/auth/login': { post: { summary: 'Iniciar sesión', responses: { '200': { description: 'Token y usuario' } } } },
+        '/api/auth/register': { post: { summary: 'Registro público de clientes', description: 'Crea un cliente y su usuario vinculado con rol CLIENT. No permite seleccionar roles internos.', responses: { '201': { description: 'Cuenta creada y token de sesión' }, '400': { description: 'Datos inválidos' }, '409': { description: 'Documento o correo ya registrado' }, '429': { description: 'Límite de registros alcanzado' } } } },
         '/api/clients': { get: { summary: 'Buscar clientes', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Listado paginado' } } }, post: { summary: 'Registrar cliente', security: [{ bearerAuth: [] }], responses: { '201': { description: 'Cliente creado' } } } },
         '/api/tickets': { get: { summary: 'Consultar tickets paginados', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Listado paginado de tickets' } } },
             post: { summary: 'Registrar ticket', security: [{ bearerAuth: [] }], responses: { '201': { description: 'Ticket creado' } } } },

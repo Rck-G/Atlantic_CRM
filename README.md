@@ -100,3 +100,7 @@ La sintaxis del archivo backend se comprobó con `node --check`. En el entorno d
 Se añadió `docker-compose.prod.yml`, `backend/Dockerfile.prod`, `frontend/Dockerfile.prod` y `frontend/nginx.conf`. La plantilla usa PostgreSQL administrado externo (no levanta una base local), sirve el frontend con Nginx y enruta `/api` hacia Express. Define en el entorno de despliegue `DATABASE_URL`, `JWT_SECRET`, `INTEGRATION_WEBHOOK_SECRET`, `FRONTEND_ORIGIN` y opcionalmente `WEB_PORT`. La capa de entrada del proveedor cloud debe terminar TLS/HTTPS y aplicar WAF.
 
 La plantilla no ejecuta migraciones automáticamente: aplica un baseline y migraciones Prisma revisadas mediante un job de despliegue antes de actualizar el servicio. En este paquete no se incluyó una migración inicial generada/verificada porque no se pudo ejecutar Prisma CLI en el entorno de construcción; por ello primero se debe completar el baseline contra la base objetivo y no desplegar esta plantilla sobre producción sin esa tarea.
+
+
+### Registro público de clientes
+La pantalla de acceso permite alternar entre inicio de sesión y creación de cuenta de cliente. El endpoint público `POST /api/auth/register` crea un perfil `Client` y un usuario `CLIENT` vinculado. Consulta `docs/REGISTRO_PUBLICO_CLIENTES.md` para validaciones, límites y pendientes de verificación de correo.

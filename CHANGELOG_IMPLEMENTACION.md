@@ -35,3 +35,13 @@
 - Se restringió el catálogo de eventos visible para cuentas CLIENT: solo reciben eventos publicados y cuya fecha de cierre no haya pasado. Los perfiles internos conservan la vista operativa completa.
 - Los formularios de restaurantes, reservas y eventos ya no borran los datos ingresados cuando el servidor rechaza la operación; solo se reinician tras una respuesta satisfactoria.
 - Se añadió manejo explícito de errores al convertir fechas locales de reservas/eventos, evitando que una fecha inválida rompa el flujo de envío.
+
+
+## Registro público de clientes
+- Se agregó pestaña de registro en la pantalla de acceso.
+- Se agregó `POST /api/auth/register`, público y limitado a 5 solicitudes por hora.
+- El servidor valida datos con Zod, crea Client + User en transacción y fija el rol CLIENT.
+- Contraseñas con requisitos de complejidad y hash bcrypt cost 12.
+- Documento y correo duplicados se rechazan; el consentimiento de marketing es opcional y desmarcado por defecto.
+- Se registra la acción de alta propia en auditoría.
+- Se documentó el flujo en `docs/REGISTRO_PUBLICO_CLIENTES.md`.

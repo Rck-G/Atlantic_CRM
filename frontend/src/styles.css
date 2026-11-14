@@ -45,3 +45,19 @@
 .operations-page form input, .operations-page form select { width:100%; min-width:0; }
 .operations-page .operations-grid { align-items:start; }
 .operations-page .table-wrap { overflow-x:auto; }
+
+/* Registro público de clientes */
+.auth-card{width:min(520px,100%)}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;background:#f0f3f7;border-radius:10px;margin:18px 0}
+.auth-tab{border:0;background:transparent;border-radius:8px;padding:10px;color:#65758a;font-size:12px;font-weight:700}
+.auth-tab.active{background:#fff;color:#0b2b4b;box-shadow:0 2px 8px #102b4612}
+.register-form{gap:12px}
+.register-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.register-form label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#4e6076}
+.register-form input:not([type=checkbox]){width:100%;border:1px solid #dfe5ed;background:#fbfcfe;border-radius:8px;padding:10px 11px;font-size:12px;color:#233850;outline:none}
+.register-form input:focus{border-color:#7194b6;box-shadow:0 0 0 3px #7194b61c}
+.field-hint{font-size:10px;font-weight:400;color:#8492a4}
+.register-form .consent-row{display:block;font-weight:400;line-height:1.5}
+.consent-row span{display:flex;align-items:flex-start;gap:8px}
+.consent-row input{margin-top:2px;accent-color:#0a2a4b}
+@media(max-width:560px){.auth-card{padding:26px 20px}.register-grid{grid-template-columns:1fr}}

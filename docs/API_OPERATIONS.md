@@ -60,3 +60,8 @@ La venta se hace upsert por `externalId`. Si está pagada y vinculada a un clien
 - Tarifas, pagos, depósitos, cancelación, no-show y política de reembolso.
 - Aforo por tipo de entrada, cupos VIP, waitlist y aprobación de eventos.
 - Catálogo de sistemas fuente, mapeo de identificadores y estrategia de conciliación.
+
+
+## Registro público de clientes
+
+`POST /api/auth/register` es público y crea en una sola transacción un `Client` y un `User` vinculado. El servidor fija el rol `CLIENT`; el cliente HTTP no puede solicitar roles internos. Valida nombres, apellidos, documento, correo, teléfono y contraseña con Zod. Aplica límite de 5 registros por hora. Responde 201 con token y perfil mínimo, 400 con errores de validación, 409 para documento/correo duplicado y 429 al superar el límite. Ver `REGISTRO_PUBLICO_CLIENTES.md` para el contrato completo y las limitaciones.
