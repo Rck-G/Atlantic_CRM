@@ -1,4 +1,4 @@
-# Atlantic City CRM — versión ampliada
+# Atlantic City CRM
 
 CRM web modular para clientes, fidelización, campañas, beneficios, HelpDesk, reservas, restaurantes, eventos, ventas/POS e integración de sistemas.
 
@@ -6,7 +6,7 @@ CRM web modular para clientes, fidelización, campañas, beneficios, HelpDesk, r
 
 > **Estado de entrega:** código ampliado y preparado para integración. La revisión y validación ejecutada en este entorno es estática (`node --check` del backend). No se pudo instalar dependencias ni levantar PostgreSQL/Docker en este entorno, por lo que no se afirma que los flujos hayan superado pruebas de integración. Los proveedores reales de POS, membresías, reservas, eventos y marketing no fueron identificados; por ello los endpoints de dominio y el webhook POS quedan listos para configuración, pero no hay conectividad externa activa. Las reglas VIP y políticas operativas son parámetros de negocio pendientes de aprobación.
 
-## Evolución integral 2.0
+## Evolución integral
 
 El alcance aprobado es integral: Gerencia, Marketing, Operaciones, Atención al Cliente y clientes finales. El proveedor POS aún no está definido, por lo que no se considera activa ninguna integración POS productiva. La arquitectura futura debe ser neutral a proveedor.
 
